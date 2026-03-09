@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: profiles
+    // Document ID: userId (Firebase Auth UID)
+    // Fields:
+    //   - username: string (required)
+    //   - name: string (optional)
+    //   - avatar: string (optional)
+    //   - bio: string (optional)
+    //   - coverPhoto: string (optional)
+    //   - stats: map (optional)
+    //   - observing: list of strings (optional)
+    //
+    // Collection: videos
+    // Document ID: auto-generated
+    // Fields:
+    //   - user_id: string (required)
+    //   - title: string (required)
+    //   - caption: string (optional)
+    //   - videoUrl: string (required)
+    //   - posterUrl: string (optional)
+    //   - hashtags: list of strings (optional)
+    //   - likes: number (optional)
+    //   - comments: number (optional)
+    //   - shares: number (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: photo_posts
+    // Document ID: auto-generated
+    // Fields:
+    //   - user_id: string (required)
+    //   - timestamp: string (optional)
+    //   - caption: string (optional)
+    //   - imageUrl: string (required)
+    //   - stats: map (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: shop_posts
+    // Document ID: auto-generated
+    // Fields:
+    //   - seller_id: string (required)
+    //   - title: string (required)
+    //   - price: number (required)
+    //   - imageUrl: string (required)
+    //   - description: string (optional)
+    //   - category: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: comments
+    // Document ID: auto-generated
+    // Fields:
+    //   - video_id: string (required)
+    //   - user_id: string (required)
+    //   - text: string (required)
+    //   - timestamp: string (optional)
+    //   - likes: number (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+    
+    function isSellerOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.seller_id;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(field, maxLen) {
+      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidNumber(field) {
+      return request.resource.data[field] is number;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /profiles/{userId} {
+      allow read: if true; // Profiles are public
+      allow create: if isOwner(userId) && hasRequiredFields(['username']) && isValidString('username', 50);
+      allow update: if isOwner(userId) && (!('id' in request.resource.data) || request.resource.data.id == resource.data.id);
+    }
+
+    match /videos/{videoId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['user_id', 'videoUrl', 'title']);
+      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments', 'shares']));
+      allow delete: if isDocOwner();
+    }
+
+    match /photo_posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['user_id', 'imageUrl']);
+      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']));
+      allow delete: if isDocOwner();
+    }
+
+    match /shop_posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.seller_id == request.auth.uid && hasRequiredFields(['seller_id', 'title', 'price', 'imageUrl']);
+      allow update: if isSellerOwner();
+      allow delete: if isSellerOwner();
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['video_id', 'user_id', 'text']);
+      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
+      allow delete: if isDocOwner();
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Reelify",
+  "description": "A React-based web application mimicking the UI of a modern, vibrant social video platform called Reelify, designed with a dark theme and neon accents for a dynamic user experience.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

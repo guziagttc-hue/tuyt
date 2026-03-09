@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "profiles": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "bio": { "type": "string" },
+        "coverPhoto": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "observers": { "type": "integer" },
+            "observing": { "type": "integer" },
+            "totalViews": { "type": "integer" },
+            "joined": { "type": "string" }
+          }
+        },
+        "observing": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "username"]
+    },
+    "videos": {
+      "title": "Video",
+      "description": "Video post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "user_id": { "type": "string" },
+        "title": { "type": "string" },
+        "caption": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "posterUrl": { "type": "string" },
+        "hashtags": { "type": "array", "items": { "type": "string" } },
+        "likes": { "type": "integer" },
+        "comments": { "type": "integer" },
+        "shares": { "type": "integer" }
+      }
+    },
+    "photo_posts": {
+      "title": "Photo Post",
+      "description": "Photo post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "user_id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "caption": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "likes": { "type": "integer" },
+            "comments": { "type": "integer" },
+            "shares": { "type": "integer" },
+            "views": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "shop_posts": {
+      "title": "Shop Post",
+      "description": "Shop post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "seller_id": { "type": "string" },
+        "title": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" }
+      }
+    },
+    "comments": {
+      "title": "Comment",
+      "description": "Comment on a video",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "video_id": { "type": "integer" },
+        "user_id": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "likes": { "type": "integer" }
+      }
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": { "schema": "profiles", "description": "User profiles" },
+    "/videos/{videoId}": { "schema": "videos", "description": "Videos" },
+    "/photo_posts/{postId}": { "schema": "photo_posts", "description": "Photo posts" },
+    "/shop_posts/{postId}": { "schema": "shop_posts", "description": "Shop posts" },
+    "/comments/{commentId}": { "schema": "comments", "description": "Comments" }
+  }
+}

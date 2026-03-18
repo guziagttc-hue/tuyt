@@ -25,9 +25,9 @@ export const mariaKhan: User = {
   bio: 'Content Creator | Storyteller | Traveler. ✨ Exploring the world one frame at a time and sharing stories that inspire, captivate, and move you. Join me on this incredible journey!',
   coverPhoto: 'https://images.pexels.com/photos/371633/pexels-photo-371633.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
   stats: {
-    observers: 0,
-    observing: 0,
-    totalViews: 0,
+    observers: 1500,
+    observing: 350,
+    totalViews: 85000,
     joined: 'Jan 2022'
   },
   observing: []
@@ -214,8 +214,46 @@ export const shopPostsData: ShopPost[] = [
     }
 ];
 export const galleryMediaData: GalleryMedia[] = [];
-export const conversationsData: Conversation[] = [];
-export const notificationsData: Notification[] = [];
+export const conversationsData: Conversation[] = [
+    {
+        id: 1,
+        user: mariaKhan,
+        lastMessage: "Hey! Loved your latest video!",
+        timestamp: "10m",
+        unread: 1,
+        messages: [
+            { id: 1, sender: 'other', text: "Hey! Loved your latest video!", timestamp: "10:00 AM" },
+            { id: 2, sender: 'me', text: "Thank you so much! Glad you liked it.", timestamp: "10:05 AM" }
+        ]
+    },
+    {
+        id: 2,
+        user: tusharEmran,
+        lastMessage: "Are you coming to the event tomorrow?",
+        timestamp: "1h",
+        unread: 0,
+        messages: [
+            { id: 1, sender: 'other', text: "Are you coming to the event tomorrow?", timestamp: "9:00 AM" }
+        ]
+    }
+];
+export const notificationsData: Notification[] = [
+    {
+        id: 1,
+        user: mariaKhan,
+        type: 'like',
+        timestamp: '5m ago',
+        read: false,
+        post: { thumbnail: 'https://i.ibb.co/68g2zP2/tushar-emran-post.jpg' }
+    },
+    {
+        id: 2,
+        user: tusharEmran,
+        type: 'follow',
+        timestamp: '1h ago',
+        read: true
+    }
+];
 
 
 export const VibeLogo = () => (

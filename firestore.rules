@@ -1,136 +1,78 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
     //
-    // Collection: profiles
-    // Document ID: userId (Firebase Auth UID)
+    // Collection: users
+    // Document ID: {uid} (Firebase Auth UID)
     // Fields:
-    //   - username: string (required)
-    //   - name: string (optional)
-    //   - avatar: string (optional)
-    //   - bio: string (optional)
-    //   - coverPhoto: string (optional)
-    //   - stats: map (optional)
-    //   - observing: list of strings (optional)
-    //
-    // Collection: videos
-    // Document ID: auto-generated
-    // Fields:
-    //   - user_id: string (required)
-    //   - title: string (required)
-    //   - caption: string (optional)
-    //   - videoUrl: string (required)
-    //   - posterUrl: string (optional)
-    //   - hashtags: list of strings (optional)
-    //   - likes: number (optional)
-    //   - comments: number (optional)
-    //   - shares: number (optional)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: photo_posts
-    // Document ID: auto-generated
-    // Fields:
-    //   - user_id: string (required)
-    //   - timestamp: string (optional)
-    //   - caption: string (optional)
-    //   - imageUrl: string (required)
-    //   - stats: map (optional)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: shop_posts
-    // Document ID: auto-generated
-    // Fields:
-    //   - seller_id: string (required)
-    //   - title: string (required)
-    //   - price: number (required)
-    //   - imageUrl: string (required)
-    //   - description: string (optional)
-    //   - category: string (optional)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: comments
-    // Document ID: auto-generated
-    // Fields:
-    //   - video_id: string (required)
-    //   - user_id: string (required)
-    //   - text: string (required)
-    //   - timestamp: string (optional)
-    //   - likes: number (optional)
-    //   - createdAt: timestamp (required)
+    //   - uid: string (required) - Firebase Auth UID
+    //   - username: string (required, 3-30 chars) - Display username
+    //   - displayName: string (required, 1-50 chars) - Display name
+    //   - avatarUrl: string (optional, URL) - URL to avatar image
+    //   - bio: string (optional, < 500 chars) - User bio
+    //   - createdAt: timestamp (required) - Account creation date
     //
     // ===============================================================
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
     function isAuthenticated() {
-      return request.auth != null;
+       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.user_id;
-    }
-    
-    function isSellerOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.seller_id;
+    function isOwner(uid) {
+       return isAuthenticated() && request.auth.uid == uid;
     }
 
     function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+       return request.resource.data.keys().hasAll(fields);
     }
 
-    function isValidString(field, maxLen) {
-      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
+    function isValidString(field, minLen, maxLen) {
+       return request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen;
     }
 
-    function isValidNumber(field) {
-      return request.resource.data[field] is number;
+    function isValidUrl(url) {
+       return url is string &&
+         (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Domain Validator
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'username', 'displayName', 'avatarUrl', 'bio', 'createdAt']) &&
+             data.uid is string &&
+             isValidString('username', 3, 30) &&
+             isValidString('displayName', 1, 50) &&
+             (!('avatarUrl' in data) || isValidUrl(data.avatarUrl)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 500)) &&
+             data.createdAt is timestamp;
     }
 
     // ===============================================================
-    // Collection Rules
+    // Rules
     // ===============================================================
 
-    match /profiles/{userId} {
-      allow read: if true; // Profiles are public
-      allow create: if isOwner(userId) && hasRequiredFields(['username']) && isValidString('username', 50);
-      allow update: if isOwner(userId) && (!('id' in request.resource.data) || request.resource.data.id == resource.data.id);
-    }
-
-    match /videos/{videoId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['user_id', 'videoUrl', 'title']);
-      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments', 'shares']));
-      allow delete: if isDocOwner();
-    }
-
-    match /photo_posts/{postId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['user_id', 'imageUrl']);
-      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']));
-      allow delete: if isDocOwner();
-    }
-
-    match /shop_posts/{postId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.seller_id == request.auth.uid && hasRequiredFields(['seller_id', 'title', 'price', 'imageUrl']);
-      allow update: if isSellerOwner();
-      allow delete: if isSellerOwner();
-    }
-
-    match /comments/{commentId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid && hasRequiredFields(['video_id', 'user_id', 'text']);
-      allow update: if isDocOwner() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
-      allow delete: if isDocOwner();
+    match /users/{uid} {
+      allow read: if isAuthenticated(); // Public profiles for now, but sensitive fields should be separated
+      allow create: if isOwner(uid) && isValidUser(request.resource.data) && request.resource.data.uid == uid;
+      allow update: if isOwner(uid) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'createdAt']);
+      allow delete: if false;
     }
   }
 }

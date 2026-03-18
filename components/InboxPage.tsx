@@ -4,6 +4,9 @@ import type { Conversation, User, Notification } from '../types';
 
 interface InboxPageProps {
   onSelectUser: (user: User) => void;
+  conversations: Conversation[];
+  onSendMessage: (conversationId: number, text: string) => void;
+  notifications: Notification[];
 }
 
 const NotificationItem: React.FC<{ notification: Notification }> = ({ notification }) => {
@@ -65,13 +68,21 @@ const NotificationsDropdown = () => (
 );
 
 
-const InboxPage: React.FC<InboxPageProps> = ({ onSelectUser }) => {
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(conversationsData[0] || null);
+const InboxPage: React.FC<InboxPageProps> = ({ onSelectUser, conversations, onSendMessage, notifications }) => {
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(conversations[0] || null);
   const [mobileChatVisible, setMobileChatVisible] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
   const notificationsRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notificationsData.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleSendMessage = () => {
+    if (selectedConversation && newMessage.trim()) {
+      onSendMessage(selectedConversation.id, newMessage);
+      setNewMessage('');
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -107,7 +118,7 @@ const InboxPage: React.FC<InboxPageProps> = ({ onSelectUser }) => {
         </div>
       </header>
       <div className="flex-grow overflow-y-auto">
-        {conversationsData.map(convo => (
+        {conversations.map(convo => (
           <button 
             key={convo.id} 
             onClick={() => handleSelectConversation(convo)}
@@ -159,8 +170,18 @@ const InboxPage: React.FC<InboxPageProps> = ({ onSelectUser }) => {
           </div>
           <footer className="p-4 border-t border-gray-700/50 shrink-0">
             <div className="bg-[#282A36] rounded-lg flex items-center px-4">
-                <input type="text" placeholder="Type a message..." className="w-full bg-transparent p-3 outline-none" />
-                <button className="text-cyan-400 font-bold p-2 hover:text-cyan-300 transition-colors">Send</button>
+                <input 
+                    type="text" 
+                    placeholder="Type a message..." 
+                    className="w-full bg-transparent p-3 outline-none" 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                />
+                <button 
+                    className="text-cyan-400 font-bold p-2 hover:text-cyan-300 transition-colors"
+                    onClick={handleSendMessage}
+                >Send</button>
             </div>
           </footer>
         </>

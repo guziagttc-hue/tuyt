@@ -1,8 +1,10 @@
 {
-  "apiKey": "AIzaSyAgHjJYe9Y6XbN1XI_EBUne-qQpKMp4sS8",
-  "authDomain": "tiktokbanglaboost.firebaseapp.com",
-  "projectId": "tiktokbanglaboost",
-  "storageBucket": "tiktokbanglaboost.firebasestorage.app",
-  "messagingSenderId": "101684003487",
-  "appId": "1:101684003487:web:ef547b95c5cbbf46e398aa"
+  "projectId": "studio-8990543519-d9691",
+  "appId": "1:873123350814:web:3f2a7527c93a0cbaf5e10f",
+  "apiKey": "AIzaSyAnH7Y75lPs3atjNbXfmP0O4-xUgyx3laI",
+  "authDomain": "studio-8990543519-d9691.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-a1e43ebb-df2c-4836-93e3-e465b2940de3",
+  "storageBucket": "studio-8990543519-d9691.firebasestorage.app",
+  "messagingSenderId": "873123350814",
+  "measurementId": ""
 }

@@ -231,11 +231,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, allVideos, allPhotoPost
       <div className="p-4 pt-0">
         <div className="bg-[#1A1B20] p-3 rounded-xl">
             <div className="flex items-center justify-around">
-                <StatItem value={formatNumber(user.stats.observers)} label="Observers" />
+                <StatItem value={user.stats.observers.toLocaleString()} label="Observers" />
                 <div className="h-10 w-px bg-white/10"></div>
-                <StatItem value={formatNumber(user.stats.observing)} label="Observing" />
+                <StatItem value={user.stats.observing.toLocaleString()} label="Observing" />
                 <div className="h-10 w-px bg-white/10"></div>
-                <StatItem value={formatNumber(user.stats.totalViews)} label="Total Views" />
+                <StatItem value={user.stats.totalViews.toLocaleString()} label="Total Views" />
                 <div className="h-10 w-px bg-white/10"></div>
                 <StatItem value={`${user.stats.joined}`} label="Joined" />
             </div>

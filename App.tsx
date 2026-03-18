@@ -18,10 +18,9 @@ import UploadPage from './components/UploadPage';
 import CreatePhotoPostPage from './components/CreatePhotoPostPage';
 import SettingsPage from './components/SettingsPage';
 import type { User, Video, GalleryMedia, ShopPost, PhotoPost, Comment } from './types';
-import { initialVideosData, mariaKhan, tusharEmran, mdesa, allUsers as initialAllUsers, photoPostsData as initialPhotoPosts, shopPostsData as initialShopPosts } from './constants';
-import { firebaseService } from './firebaseService';
-import { auth } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { initialVideosData, mariaKhan, tusharEmran, mdesa, allUsers as initialAllUsers, photoPostsData as initialPhotoPosts, shopPostsData as initialShopPosts, conversationsData, notificationsData } from './constants';
+import { supabaseService } from './supabaseService';
+import { supabase } from './supabaseClient';
 
 export type View = 'feed' | 'foryou' | 'profile' | 'inbox' | 'editProfile' | 'postCreation' | 'photos' | 'observing' | 'userFeed' | 'videoEditor' | 'photoPost' | 'shopDetail' | 'upload' | 'createPhotoPost' | 'settings';
 
@@ -34,6 +33,8 @@ const App: React.FC = () => {
   const [allVideos, setAllVideos] = useState<Video[]>(initialVideosData);
   const [allPhotoPosts, setAllPhotoPosts] = useState<PhotoPost[]>(initialPhotoPosts);
   const [allShopPosts, setAllShopPosts] = useState<ShopPost[]>(initialShopPosts);
+  const [conversations, setConversations] = useState<Conversation[]>(conversationsData);
+  const [notifications, setNotifications] = useState<Notification[]>(notificationsData);
 
   const [userFeedVideos, setUserFeedVideos] = useState<Video[]>([]);
   const [userFeedStartIndex, setUserFeedStartIndex] = useState(0);
@@ -54,10 +55,10 @@ const App: React.FC = () => {
       setIsLoading(true);
       try {
         const [users, videos, photos, shop] = await Promise.all([
-          firebaseService.getAllUsers(),
-          firebaseService.getVideos(),
-          firebaseService.getPhotoPosts(),
-          firebaseService.getShopPosts()
+          supabaseService.getAllUsers(),
+          supabaseService.getVideos(),
+          supabaseService.getPhotoPosts(),
+          supabaseService.getShopPosts()
         ]);
         
         if (users && users.length > 0) setAllUsers(users);
@@ -73,10 +74,10 @@ const App: React.FC = () => {
 
     fetchData();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
         setIsLoggedIn(true);
-        const profile = await firebaseService.getProfile(user.uid);
+        const profile = await supabaseService.getProfile(session.user.id);
         if (profile) {
           setLoggedInUser(profile);
         }
@@ -86,17 +87,22 @@ const App: React.FC = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     // Removed localStorage sync for auth state as it's handled by Supabase
   }, [isLoggedIn, loggedInUser, allVideos, allUsers, allPhotoPosts, allShopPosts]);
 
-  const handleLoginSuccess = async () => {
-    const user = auth.currentUser;
+  const handleLoginSuccess = async (user?: User) => {
     if (user) {
-      const profile = await firebaseService.getProfile(user.uid);
+      setLoggedInUser(user);
+      setIsLoggedIn(true);
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const profile = await supabaseService.getProfile(session.user.id);
       if (profile) {
         setLoggedInUser(profile);
         setIsLoggedIn(true);
@@ -202,6 +208,13 @@ const App: React.FC = () => {
     }));
 
     setCurrentView('profile');
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setLoggedInUser(null);
+    window.location.reload();
   };
 
   const handleUploadClick = () => {
@@ -542,15 +555,10 @@ const App: React.FC = () => {
       pageContent = (
         <SettingsPage 
           onBack={() => setCurrentView('profile')} 
-          onLogout={async () => {
-            await signOut(auth);
-            setIsLoggedIn(false);
-            setLoggedInUser(null);
-            window.location.reload();
-          }}
+          onLogout={handleLogout}
           onDeleteAccount={async () => {
             // In a real app, this would call an API
-            await signOut(auth);
+            await supabase.auth.signOut();
             setIsLoggedIn(false);
             setLoggedInUser(null);
             window.location.reload();
@@ -559,7 +567,23 @@ const App: React.FC = () => {
       );
       break;
     case 'inbox':
-      pageContent = <InboxPage onSelectUser={handleSelectUserFromFeed} />;
+      pageContent = <InboxPage 
+        onSelectUser={handleSelectUserFromFeed} 
+        conversations={conversations}
+        onSendMessage={(conversationId, text) => {
+            setConversations(prev => prev.map(convo => {
+                if (convo.id === conversationId) {
+                    return {
+                        ...convo,
+                        messages: [...convo.messages, { id: Date.now(), sender: 'me', text, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }],
+                        lastMessage: text
+                    };
+                }
+                return convo;
+            }));
+        }}
+        notifications={notifications}
+      />;
       break;
     case 'editProfile':
       pageContent = (
@@ -620,10 +644,17 @@ const App: React.FC = () => {
         <div className="container mx-auto h-full max-w-screen-xl flex lg:gap-6 lg:p-4">
             
             <nav className="hidden lg:block w-[280px] shrink-0">
-                <LeftSidebar onNavigate={handleNavigate} currentView={currentView} />
+                <LeftSidebar onNavigate={handleNavigate} currentView={currentView} onLogout={handleLogout} />
             </nav>
 
             <div className="flex-grow flex flex-col h-full overflow-hidden relative">
+                {/* Desktop Top Nav */}
+                <header className="hidden lg:flex items-center justify-between p-4 bg-[#0D0F13] border-b border-gray-800">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold text-white">Reelify</h1>
+                    </div>
+                </header>
+
                 <main className="flex-grow h-full overflow-hidden relative bg-black lg:rounded-2xl">
                     {pageContent}
                 </main>

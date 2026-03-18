@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { CloseIcon, QuestionIcon, GoogleIcon } from '../constants';
-import { auth } from '../firebase';
-import { firebaseService } from '../firebaseService';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { supabase } from '../supabaseClient';
+import { supabaseService } from '../supabaseService';
 
 interface SignupPageProps {
   onSignupSuccess: () => void;
@@ -10,6 +9,7 @@ interface SignupPageProps {
 }
 
 const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -22,10 +22,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     setLoading(true);
     setError(null);
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      if (result.user) {
-        await firebaseService.createProfile({
-          id: result.user.uid,
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (signUpError) throw signUpError;
+      
+      if (data.user) {
+        await supabaseService.createProfile({
+          id: data.user.id,
           username: username || email.split('@')[0],
           name: name || username || email.split('@')[0],
         });
@@ -40,8 +45,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
 
   const handleGoogleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
     } catch (err: any) {
       setError(err.message || 'Failed to sign up with Google');
     }
@@ -59,65 +66,81 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
             <h1 className="text-3xl font-bold mb-3">Sign up for Reelify</h1>
             <p className="text-gray-500 mb-8 text-sm">Create a profile, follow other accounts, make your own videos, and more.</p>
             
-            <form onSubmit={handleSignup} className="space-y-4 mb-4">
-                <input 
-                    type="text" 
-                    placeholder="Username" 
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                />
-                <input 
-                    type="text" 
-                    placeholder="Full Name" 
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                />
-                <input 
-                    type="email" 
-                    placeholder="Email address" 
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
-                <input 
-                    type="password" 
-                    placeholder="Password" 
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
-                {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs text-left border border-red-100 animate-in fade-in slide-in-from-top-1">
-                        {error}
-                    </div>
-                )}
-                <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full p-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                    {loading ? 'Processing...' : 'Sign up'}
-                </button>
-            </form>
-
-            <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-500">Or</span></div>
-            </div>
-
-            <button 
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
-            >
-                <div className="w-5 mr-4"><GoogleIcon /></div>
-                <span className="flex-grow text-center">Continue with Google</span>
-            </button>
+            {!showEmailForm ? (
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => setShowEmailForm(true)}
+                        className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+                    >
+                        <span className="flex-grow text-center">Use phone or email</span>
+                    </button>
+                    <button 
+                        className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+                    >
+                        <span className="flex-grow text-center">Continue with Facebook</span>
+                    </button>
+                    <button 
+                        onClick={handleGoogleLogin}
+                        className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+                    >
+                        <div className="w-5 mr-4"><GoogleIcon /></div>
+                        <span className="flex-grow text-center">Continue with Google</span>
+                    </button>
+                </div>
+            ) : (
+                <form onSubmit={handleSignup} className="space-y-4 mb-4">
+                    <input 
+                        type="text" 
+                        placeholder="Username" 
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Full Name" 
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                    />
+                    <input 
+                        type="email" 
+                        placeholder="Email address" 
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                    <input 
+                        type="password" 
+                        placeholder="Password" 
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs text-left border border-red-100 animate-in fade-in slide-in-from-top-1">
+                            {error}
+                        </div>
+                    )}
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full p-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                    >
+                        {loading ? 'Processing...' : 'Sign up'}
+                    </button>
+                    <button 
+                        onClick={() => setShowEmailForm(false)}
+                        className="w-full p-2 text-sm text-gray-500 hover:underline"
+                    >
+                        Back
+                    </button>
+                </form>
+            )}
         </div>
       </main>
       
